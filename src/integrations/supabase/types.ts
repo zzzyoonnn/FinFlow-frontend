@@ -14,7 +14,105 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      account: {
+        Row: {
+          balance: number
+          created_at: string
+          id: number
+          number: number
+          password: string
+          updated_at: string
+          user_id: number | null
+        }
+        Insert: {
+          balance: number
+          created_at: string
+          id?: number
+          number: number
+          password: string
+          updated_at: string
+          user_id?: number | null
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: number
+          number?: number
+          password?: string
+          updated_at?: string
+          user_id?: number | null
+        }
+        Relationships: []
+      }
+      account_transaction: {
+        Row: {
+          amount: number
+          created_at: string
+          deposit_account_balance: number | null
+          deposit_account_id: number | null
+          id: number
+          transaction_type: string
+          updated_at: string
+          withdraw_account_balance: number | null
+          withdraw_account_id: number | null
+        }
+        Insert: {
+          amount: number
+          created_at: string
+          deposit_account_balance?: number | null
+          deposit_account_id?: number | null
+          id?: number
+          transaction_type: string
+          updated_at: string
+          withdraw_account_balance?: number | null
+          withdraw_account_id?: number | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          deposit_account_balance?: number | null
+          deposit_account_id?: number | null
+          id?: number
+          transaction_type?: string
+          updated_at?: string
+          withdraw_account_balance?: number | null
+          withdraw_account_id?: number | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          fullname: string
+          id: number
+          password: string
+          role: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at: string
+          email: string
+          fullname: string
+          id?: number
+          password: string
+          role: string
+          updated_at: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          fullname?: string
+          id?: number
+          password?: string
+          role?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
