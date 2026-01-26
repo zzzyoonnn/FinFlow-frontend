@@ -4,6 +4,7 @@ import { BalanceCard } from '@/components/BalanceCard';
 import { ActionCard } from '@/components/ActionCard';
 import { TransactionList } from '@/components/TransactionList';
 import { TransactionModal } from '@/components/TransactionModal';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useBankAccount } from '@/hooks/useBankAccount';
 
 type TransactionType = 'deposit' | 'withdraw' | 'transfer';
@@ -30,9 +31,12 @@ const Index = () => {
                 <p className="text-xs text-muted-foreground">Personal Banking</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-sm text-muted-foreground">Online</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                <span className="text-sm text-muted-foreground">Online</span>
+              </div>
+              <ThemeToggle />
             </div>
           </div>
         </div>
