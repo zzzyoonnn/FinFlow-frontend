@@ -1,17 +1,39 @@
-import { useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, Send, Shield } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowDownLeft, ArrowUpRight, Send, Shield, LogOut, LogIn } from 'lucide-react';
 import { BalanceCard } from '@/components/BalanceCard';
 import { ActionCard } from '@/components/ActionCard';
 import { TransactionList } from '@/components/TransactionList';
 import { TransactionModal } from '@/components/TransactionModal';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { Button } from '@/components/ui/button';
 import { useBankAccount } from '@/hooks/useBankAccount';
+import { useToast } from '@/hooks/use-toast';
 
 type TransactionType = 'deposit' | 'withdraw' | 'transfer';
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const { balance, transactions, deposit, withdraw, transfer } = useBankAccount();
   const [modalType, setModalType] = useState<TransactionType | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    setUser(null);
+    toast({
+      title: "로그아웃",
+      description: "성공적으로 로그아웃되었습니다.",
+    });
+  };
 
   const openModal = (type: TransactionType) => setModalType(type);
   const closeModal = () => setModalType(null);
@@ -32,10 +54,32 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                <span className="text-sm text-muted-foreground">Online</span>
-              </div>
+              {user ? (
+                <>
+                  <span className="text-sm text-muted-foreground hidden sm:inline">
+                    {user.fullname}님
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="gap-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span className="hidden sm:inline">로그아웃</span>
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate('/login')}
+                  className="gap-2"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span className="hidden sm:inline">로그인</span>
+                </Button>
+              )}
               <ThemeToggle />
             </div>
           </div>
