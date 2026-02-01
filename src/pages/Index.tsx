@@ -5,12 +5,21 @@ import { BalanceCard } from '@/components/BalanceCard';
 import { ActionCard } from '@/components/ActionCard';
 import { TransactionList } from '@/components/TransactionList';
 import { TransactionModal } from '@/components/TransactionModal';
+import { AccountList } from '@/components/AccountList';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { useBankAccount } from '@/hooks/useBankAccount';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 type TransactionType = 'deposit' | 'withdraw' | 'transfer';
+
+interface Account {
+  id: number;
+  number: number;
+  balance: number;
+  created_at: string;
+}
 
 const Index = () => {
   const navigate = useNavigate();
@@ -18,6 +27,9 @@ const Index = () => {
   const { balance, transactions, deposit, withdraw, transfer } = useBankAccount();
   const [modalType, setModalType] = useState<TransactionType | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -25,6 +37,34 @@ const Index = () => {
       setUser(JSON.parse(storedUser));
     }
   }, []);
+
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      if (!user?.id) return;
+      
+      setIsLoadingAccounts(true);
+      try {
+        const { data, error } = await supabase
+          .from('account')
+          .select('id, number, balance, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        
+        setAccounts(data || []);
+        if (data && data.length > 0 && !selectedAccountId) {
+          setSelectedAccountId(data[0].id);
+        }
+      } catch (error) {
+        console.error('Failed to fetch accounts:', error);
+      } finally {
+        setIsLoadingAccounts(false);
+      }
+    };
+
+    fetchAccounts();
+  }, [user?.id]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -88,10 +128,27 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Balance Section */}
-        <section className="mb-8">
-          <BalanceCard balance={balance} />
-        </section>
+        {/* Account List Section */}
+        {user && (
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold text-foreground mb-4">내 계좌</h2>
+            <AccountList
+              accounts={accounts}
+              isLoading={isLoadingAccounts}
+              selectedAccountId={selectedAccountId}
+              onSelectAccount={setSelectedAccountId}
+            />
+          </section>
+        )}
+
+        {/* Balance Section - Show selected account balance */}
+        {selectedAccountId && (
+          <section className="mb-8">
+            <BalanceCard 
+              balance={accounts.find(a => a.id === selectedAccountId)?.balance || 0} 
+            />
+          </section>
+        )}
 
         {/* Quick Actions */}
         <section className="mb-8">
