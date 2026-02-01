@@ -89,7 +89,7 @@ const Login = () => {
             <Shield className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">SecureBank</h1>
+            <h1 className="text-2xl font-bold text-foreground">FinFlow</h1>
             <p className="text-xs text-muted-foreground">Personal Banking</p>
           </div>
         </div>
