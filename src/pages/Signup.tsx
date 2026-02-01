@@ -102,7 +102,7 @@ const Signup = () => {
             <Shield className="w-6 h-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">SecureBank</h1>
+            <h1 className="text-2xl font-bold text-foreground">FinFlow</h1>
             <p className="text-xs text-muted-foreground">Personal Banking</p>
           </div>
         </div>
@@ -111,7 +111,7 @@ const Signup = () => {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">회원가입</CardTitle>
             <CardDescription>
-              SecureBank 계정을 생성하세요
+              FinFlow 계정을 생성하세요
             </CardDescription>
           </CardHeader>
           <CardContent>
