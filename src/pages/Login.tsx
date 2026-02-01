@@ -32,7 +32,7 @@ const Login = () => {
       toast({
         variant: "destructive",
         title: "오류",
-        description: "사용자명과 비밀번호를 입력해주세요.",
+        description: "아이디와 비밀번호를 입력해주세요.",
       });
       return;
     }
@@ -104,14 +104,14 @@ const Login = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username">사용자명</Label>
+                <Label htmlFor="username">아이디</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="username"
                     name="username"
                     type="text"
-                    placeholder="사용자명을 입력하세요"
+                    placeholder="아이디를 입력하세요"
                     value={formData.username}
                     onChange={handleChange}
                     className="pl-10"
