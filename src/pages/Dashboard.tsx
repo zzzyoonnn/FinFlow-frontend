@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowDownLeft, ArrowUpRight, Send, Shield, LogOut, LogIn } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowDownLeft, ArrowUpRight, Send, Shield, LogOut } from 'lucide-react';
 import { BalanceCard } from '@/components/BalanceCard';
 import { ActionCard } from '@/components/ActionCard';
 import { TransactionList } from '@/components/TransactionList';
@@ -21,8 +21,9 @@ interface Account {
   created_at: string;
 }
 
-const Index = () => {
+const Dashboard = () => {
   const navigate = useNavigate();
+  const { loginUser } = useParams<{ loginUser: string }>();
   const { toast } = useToast();
   const { balance, transactions, deposit, withdraw, transfer } = useBankAccount();
   const [modalType, setModalType] = useState<TransactionType | null>(null);
@@ -34,11 +35,18 @@ const Index = () => {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      // URL의 loginUser와 저장된 사용자 정보가 일치하는지 확인
+      if (parsedUser.username === loginUser) {
+        setUser(parsedUser);
+      } else {
+        // 일치하지 않으면 로그인 페이지로 이동
+        navigate('/');
+      }
     } else {
-      navigate('/login');
+      navigate('/');
     }
-  }, [navigate]);
+  }, [navigate, loginUser]);
 
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -75,10 +83,15 @@ const Index = () => {
       title: "로그아웃",
       description: "성공적으로 로그아웃되었습니다.",
     });
+    navigate('/');
   };
 
   const openModal = (type: TransactionType) => setModalType(type);
   const closeModal = () => setModalType(null);
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -96,32 +109,18 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {user ? (
-                <>
-                  <span className="text-sm text-muted-foreground hidden sm:inline">
-                    {user.fullname}님
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleLogout}
-                    className="gap-2"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span className="hidden sm:inline">로그아웃</span>
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => navigate('/login')}
-                  className="gap-2"
-                >
-                  <LogIn className="h-4 w-4" />
-                  <span className="hidden sm:inline">로그인</span>
-                </Button>
-              )}
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {user.fullname}님
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="gap-2"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">로그아웃</span>
+              </Button>
               <ThemeToggle />
             </div>
           </div>
@@ -131,17 +130,15 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Account List Section */}
-        {user && (
-          <section className="mb-8">
-            <h2 className="text-lg font-semibold text-foreground mb-4">내 계좌</h2>
-            <AccountList
-              accounts={accounts}
-              isLoading={isLoadingAccounts}
-              selectedAccountId={selectedAccountId}
-              onSelectAccount={setSelectedAccountId}
-            />
-          </section>
-        )}
+        <section className="mb-8">
+          <h2 className="text-lg font-semibold text-foreground mb-4">내 계좌</h2>
+          <AccountList
+            accounts={accounts}
+            isLoading={isLoadingAccounts}
+            selectedAccountId={selectedAccountId}
+            onSelectAccount={setSelectedAccountId}
+          />
+        </section>
 
         {/* Balance Section - Show selected account balance */}
         {selectedAccountId && (
@@ -200,4 +197,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Dashboard;
