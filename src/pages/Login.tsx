@@ -63,7 +63,7 @@ const Login = () => {
         description: `${data.user.fullname}님, 환영합니다!`,
       });
 
-      navigate("/");
+      navigate(`/api/s/account/${data.user.username}`);
     } catch (error: any) {
       toast({
         variant: "destructive",
