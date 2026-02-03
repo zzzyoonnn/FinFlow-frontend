@@ -36,17 +36,9 @@ const Dashboard = () => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
-      // URL의 loginUser와 저장된 사용자 정보가 일치하는지 확인
-      if (parsedUser.username === loginUser) {
-        setUser(parsedUser);
-      } else {
-        // 일치하지 않으면 로그인 페이지로 이동
-        navigate('/');
-      }
-    } else {
-      navigate('/');
+      setUser(parsedUser);
     }
-  }, [navigate, loginUser]);
+  }, []);
 
   useEffect(() => {
     const fetchAccounts = async () => {
