@@ -1,11 +1,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
+import { encode as hexEncode } from "https://deno.land/std@0.168.0/encoding/hex.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+// Hash password using SHA-256 (Web Crypto API)
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = new Uint8Array(hashBuffer);
+  return new TextDecoder().decode(hexEncode(hashArray));
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -51,10 +61,10 @@ serve(async (req) => {
       );
     }
 
-    // Verify password using bcrypt
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    // Hash the provided password and compare
+    const hashedPassword = await hashPassword(password);
 
-    if (!isValidPassword) {
+    if (hashedPassword !== user.password) {
       return new Response(
         JSON.stringify({ error: "사용자명 또는 비밀번호가 올바르지 않습니다." }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
