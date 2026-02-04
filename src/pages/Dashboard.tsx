@@ -81,9 +81,7 @@ const Dashboard = () => {
   const openModal = (type: TransactionType) => setModalType(type);
   const closeModal = () => setModalType(null);
 
-  if (!user) {
-    return null;
-  }
+  const displayName = user?.fullname || loginUser || '게스트';
 
   return (
     <div className="min-h-screen bg-background">
@@ -102,17 +100,19 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-sm text-muted-foreground hidden sm:inline">
-                {user.fullname}님
+                {displayName}님
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">로그아웃</span>
-              </Button>
+              {user && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="gap-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">로그아웃</span>
+                </Button>
+              )}
               <ThemeToggle />
             </div>
           </div>
