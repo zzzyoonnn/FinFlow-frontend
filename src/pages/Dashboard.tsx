@@ -37,8 +37,10 @@ const Dashboard = () => {
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
+    } else {
+      navigate('/login');
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const fetchAccounts = async () => {
