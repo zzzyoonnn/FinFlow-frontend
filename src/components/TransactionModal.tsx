@@ -40,10 +40,10 @@ const typeConfig = {
     iconBg: 'bg-warning/10',
   },
   transfer: {
-    title: 'Transfer Funds',
-    description: 'Send money to another account',
+    title: '이체',
+    description: '다른 계좌로 송금합니다',
     icon: Send,
-    buttonText: 'Transfer',
+    buttonText: '이체하기',
     buttonVariant: 'default' as const,
     iconColor: 'text-primary',
     iconBg: 'bg-primary/10',
@@ -72,6 +72,7 @@ export function TransactionModal({
   const [description, setDescription] = useState('');
   const [recipient, setRecipient] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  const [depositAccountNumber, setDepositAccountNumber] = useState('');
   const [accountPassword, setAccountPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
@@ -194,40 +195,125 @@ export function TransactionModal({
       return;
     }
 
-    if ((type === 'transfer') && numAmount > currentBalance) {
-      toast({
-        title: 'Insufficient funds',
-        description: 'You do not have enough balance for this transaction',
-        variant: 'destructive',
-      });
+    // Transfer-specific logic
+    if (type === 'transfer') {
+      if (!accountNumber.trim()) {
+        toast({ title: '출금계좌 필요', description: '출금할 계좌번호를 입력해주세요.', variant: 'destructive' });
+        return;
+      }
+      if (!depositAccountNumber.trim()) {
+        toast({ title: '입금계좌 필요', description: '입금할 계좌번호를 입력해주세요.', variant: 'destructive' });
+        return;
+      }
+      if (!accountPassword.trim()) {
+        toast({ title: '비밀번호 필요', description: '출금 계좌 비밀번호를 입력해주세요.', variant: 'destructive' });
+        return;
+      }
+
+      setIsProcessing(true);
+      try {
+        // Find withdraw account
+        const { data: withdrawAccount, error: wErr } = await supabase
+          .from('account')
+          .select('id, number, balance, password')
+          .eq('number', parseInt(accountNumber.replace(/-/g, ''), 10))
+          .single();
+
+        if (wErr || !withdrawAccount) {
+          toast({ title: '출금계좌 없음', description: '출금 계좌번호를 찾을 수 없습니다.', variant: 'destructive' });
+          setIsProcessing(false);
+          return;
+        }
+
+        // Verify password
+        const hashedInput = await hashPassword(accountPassword);
+        if (hashedInput !== withdrawAccount.password) {
+          toast({ title: '비밀번호 오류', description: '출금 계좌 비밀번호가 일치하지 않습니다.', variant: 'destructive' });
+          setIsProcessing(false);
+          return;
+        }
+
+        // Check balance
+        if (numAmount > withdrawAccount.balance) {
+          toast({ title: '잔액 부족', description: '이체 금액이 출금 계좌 잔액을 초과합니다.', variant: 'destructive' });
+          setIsProcessing(false);
+          return;
+        }
+
+        // Find deposit account
+        const { data: depositAccount, error: dErr } = await supabase
+          .from('account')
+          .select('id, number, balance')
+          .eq('number', parseInt(depositAccountNumber.replace(/-/g, ''), 10))
+          .single();
+
+        if (dErr || !depositAccount) {
+          toast({ title: '입금계좌 없음', description: '입금 계좌번호를 찾을 수 없습니다.', variant: 'destructive' });
+          setIsProcessing(false);
+          return;
+        }
+
+        if (withdrawAccount.id === depositAccount.id) {
+          toast({ title: '이체 불가', description: '출금계좌와 입금계좌가 동일합니다.', variant: 'destructive' });
+          setIsProcessing(false);
+          return;
+        }
+
+        const newWithdrawBalance = withdrawAccount.balance - numAmount;
+        const newDepositBalance = depositAccount.balance + numAmount;
+        const now = new Date().toISOString();
+
+        // Update both accounts
+        const { error: u1 } = await supabase
+          .from('account')
+          .update({ balance: newWithdrawBalance, updated_at: now })
+          .eq('id', withdrawAccount.id);
+        if (u1) throw u1;
+
+        const { error: u2 } = await supabase
+          .from('account')
+          .update({ balance: newDepositBalance, updated_at: now })
+          .eq('id', depositAccount.id);
+        if (u2) throw u2;
+
+        // Record transaction
+        await supabase.from('account_transaction').insert({
+          transaction_type: 'TRANSFER',
+          amount: numAmount,
+          withdraw_account_id: withdrawAccount.id,
+          withdraw_account_balance: newWithdrawBalance,
+          deposit_account_id: depositAccount.id,
+          deposit_account_balance: newDepositBalance,
+          created_at: now,
+          updated_at: now,
+        });
+
+        toast({
+          title: '이체 완료',
+          description: `₩${numAmount.toLocaleString('ko-KR')} 이체되었습니다.`,
+        });
+        handleClose();
+      } catch (err) {
+        console.error('Transfer error:', err);
+        toast({ title: '이체 실패', description: '이체 처리 중 오류가 발생했습니다.', variant: 'destructive' });
+      } finally {
+        setIsProcessing(false);
+      }
       return;
     }
 
-    if (type === 'transfer' && !recipient.trim()) {
-      toast({
-        title: 'Recipient required',
-        description: 'Please enter a recipient for the transfer',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+    // Deposit only
     let success = false;
-    const desc = description.trim() || `${type.charAt(0).toUpperCase() + type.slice(1)}`;
+    const desc = description.trim() || 'Deposit';
 
-    switch (type) {
-      case 'deposit':
-        success = onDeposit(numAmount, desc);
-        break;
-      case 'transfer':
-        success = onTransfer(numAmount, recipient, desc);
-        break;
+    if (type === 'deposit') {
+      success = onDeposit(numAmount, desc);
     }
 
     if (success) {
       toast({
         title: 'Transaction successful',
-        description: `Your ${type} of $${numAmount.toFixed(2)} has been processed`,
+        description: `Your deposit of $${numAmount.toFixed(2)} has been processed`,
       });
       handleClose();
     }
@@ -238,6 +324,7 @@ export function TransactionModal({
     setDescription('');
     setRecipient('');
     setAccountNumber('');
+    setDepositAccountNumber('');
     setAccountPassword('');
     onClose();
   };
@@ -286,35 +373,63 @@ export function TransactionModal({
             </>
           )}
 
+          {type === 'transfer' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="accountNumber">출금계좌</Label>
+                <Input
+                  id="accountNumber"
+                  type="text"
+                  placeholder="출금할 계좌번호 입력"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                  className="bg-secondary/50 border-border"
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="depositAccountNumber">입금계좌</Label>
+                <Input
+                  id="depositAccountNumber"
+                  type="text"
+                  placeholder="입금할 계좌번호 입력"
+                  value={depositAccountNumber}
+                  onChange={(e) => setDepositAccountNumber(e.target.value)}
+                  className="bg-secondary/50 border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="transferPassword">출금계좌 비밀번호</Label>
+                <Input
+                  id="transferPassword"
+                  type="password"
+                  placeholder="출금 계좌 비밀번호 입력"
+                  value={accountPassword}
+                  onChange={(e) => setAccountPassword(e.target.value)}
+                  className="bg-secondary/50 border-border"
+                />
+              </div>
+            </>
+          )}
+
           <div className="space-y-2">
-            <Label htmlFor="amount">{type === 'withdraw' ? '출금액 (₩)' : 'Amount ($)'}</Label>
+            <Label htmlFor="amount">
+              {type === 'withdraw' ? '출금액 (₩)' : type === 'transfer' ? '이체금액 (₩)' : 'Amount ($)'}
+            </Label>
             <Input
               id="amount"
               type="number"
               step="1"
               min="1"
-              placeholder={type === 'withdraw' ? '0' : '0.00'}
+              placeholder={type === 'withdraw' || type === 'transfer' ? '0' : '0.00'}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="bg-secondary/50 border-border text-lg font-semibold"
-              autoFocus={type !== 'withdraw'}
+              autoFocus={type === 'deposit'}
             />
           </div>
 
-          {type === 'transfer' && (
-            <div className="space-y-2">
-              <Label htmlFor="recipient">Recipient</Label>
-              <Input
-                id="recipient"
-                placeholder="Enter recipient name or account"
-                value={recipient}
-                onChange={(e) => setRecipient(e.target.value)}
-                className="bg-secondary/50 border-border"
-              />
-            </div>
-          )}
-
-          {type !== 'withdraw' && (
+          {type === 'deposit' && (
             <div className="space-y-2">
               <Label htmlFor="description">Description (optional)</Label>
               <Input
