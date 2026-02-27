@@ -117,7 +117,7 @@ const Signup = () => {
                     id="username"
                     name="username"
                     type="text"
-                    placeholder="아이디를 입력하세요"
+                    placeholder="영문자 또는 숫자를 사용해 2~20자로 입력해 주세요."
                     value={formData.username}
                     onChange={handleChange}
                     className="pl-10"
@@ -134,7 +134,7 @@ const Signup = () => {
                     id="fullname"
                     name="fullname"
                     type="text"
-                    placeholder="이름을 입력하세요"
+                    placeholder="한글 또는 영문자를 사용해 1~20자로 입력해 주세요."
                     value={formData.fullname}
                     onChange={handleChange}
                     className="pl-10"
@@ -151,7 +151,7 @@ const Signup = () => {
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="이메일을 입력하세요"
+                    placeholder="올바른 이메일 형식을 입력해 주세요."
                     value={formData.email}
                     onChange={handleChange}
                     className="pl-10"
@@ -168,7 +168,7 @@ const Signup = () => {
                     id="password"
                     name="password"
                     type="password"
-                    placeholder="비밀번호를 입력하세요 (최소 6자)"
+                    placeholder="비밀번호는 4~20자로 입력해 주세요."
                     value={formData.password}
                     onChange={handleChange}
                     className="pl-10"
