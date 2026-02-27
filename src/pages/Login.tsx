@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import api from "@/api/axios";
+import axios from "axios";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -40,35 +41,36 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("login", {
-        body: {
-          username: formData.username,
-          password: formData.password,
-        },
+      const response = await api.post("/login", {
+        username: formData.username,
+        password: formData.password,
       });
 
-      if (error) {
-        throw new Error(error.message);
+      // JWT 토큰 저장 (헤더에서 추출)
+      const token = response.headers["authorization"];
+      if (token) {
+        localStorage.setItem("token", token);
       }
 
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      // Store user info in localStorage for session management
-      localStorage.setItem("user", JSON.stringify(data.user));
+      // 유저 정보 저장 (바디에서 추출)
+      const user = response.data.data;
+      localStorage.setItem("user", JSON.stringify(user));
 
       toast({
         title: "로그인 성공",
-        description: `${data.user.fullname}님, 환영합니다!`,
+        description: `${user.fullname}님, 환영합니다!`,
       });
 
-      navigate(`/api/s/account/${data.user.username}`);
-    } catch (error: any) {
+      navigate(`/api/s/account/${user.username}`);
+    } catch (error) {
+      let message = "로그인 중 오류가 발생했습니다.";
+      if (axios.isAxiosError(error)) {
+        message = error.response?.data?.msg || message;
+      }
       toast({
         variant: "destructive",
         title: "로그인 실패",
-        description: error.message || "로그인 중 오류가 발생했습니다.",
+        description: error.response?.data?.msg || "로그인 중 오류가 발생했습니다.",
       });
     } finally {
       setIsLoading(false);

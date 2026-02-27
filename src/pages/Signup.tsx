@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import axios from "axios";
+import api from "@/api/axios";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -31,7 +32,6 @@ const Signup = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       toast({
         variant: "destructive",
@@ -41,7 +41,6 @@ const Signup = () => {
       return;
     }
 
-    // Validate password length
     if (formData.password.length < 6) {
       toast({
         variant: "destructive",
@@ -54,22 +53,12 @@ const Signup = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("signup", {
-        body: {
-          username: formData.username,
-          password: formData.password,
-          email: formData.email,
-          fullname: formData.fullname,
-        },
+      await api.post("/join", {
+        username: formData.username,
+        password: formData.password,
+        email: formData.email,
+        fullname: formData.fullname,
       });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
 
       toast({
         title: "회원가입 완료",
@@ -77,11 +66,15 @@ const Signup = () => {
       });
 
       navigate("/login");
-    } catch (error: any) {
+    } catch (error) {
+      let message = "회원가입 중 오류가 발생했습니다.";
+      if (axios.isAxiosError(error)) {
+        message = error.response?.data?.msg || message;
+      }
       toast({
         variant: "destructive",
         title: "회원가입 실패",
-        description: error.message || "회원가입 중 오류가 발생했습니다.",
+        description: message,
       });
     } finally {
       setIsLoading(false);

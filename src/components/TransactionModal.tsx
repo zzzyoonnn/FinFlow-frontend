@@ -6,7 +6,8 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowDownLeft, ArrowUpRight, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import axios from 'axios';
+import { depositAccount, withdrawAccount, transferAccount } from '@/api/account';
 
 type TransactionType = 'deposit' | 'withdraw' | 'transfer';
 
@@ -50,15 +51,6 @@ const typeConfig = {
   },
 };
 
-// SHA-256 hash to match edge function logic
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
 export function TransactionModal({
   type,
   isOpen,
@@ -84,238 +76,75 @@ export function TransactionModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const numAmount = parseFloat(amount);
-    
+
     if (isNaN(numAmount) || numAmount <= 0) {
-      toast({
-        title: '금액 오류',
-        description: '올바른 금액을 입력해주세요.',
-        variant: 'destructive',
-      });
+      toast({ title: '금액 오류', description: '올바른 금액을 입력해주세요.', variant: 'destructive' });
       return;
     }
 
-    // Withdraw-specific validation
-    if (type === 'withdraw') {
-      if (!accountNumber.trim()) {
-        toast({
-          title: '계좌번호 필요',
-          description: '출금할 계좌번호를 입력해주세요.',
-          variant: 'destructive',
-        });
-        return;
-      }
+    setIsProcessing(true);
 
-      if (!accountPassword.trim()) {
-        toast({
-          title: '비밀번호 필요',
-          description: '계좌 비밀번호를 입력해주세요.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      setIsProcessing(true);
-      try {
-        // Find account by number
-        const { data: account, error } = await supabase
-          .from('account')
-          .select('id, number, balance, password')
-          .eq('number', parseInt(accountNumber.replace(/-/g, ''), 10))
-          .single();
-
-        if (error || !account) {
-          toast({
-            title: '계좌 없음',
-            description: '해당 계좌번호를 찾을 수 없습니다.',
-            variant: 'destructive',
-          });
+    try {
+      if (type === 'deposit') {
+        if (!accountNumber.trim()) {
+          toast({ title: '계좌번호 필요', description: '입금할 계좌번호를 입력해주세요.', variant: 'destructive' });
           setIsProcessing(false);
           return;
         }
-
-        // Verify password
-        const hashedInput = await hashPassword(accountPassword);
-        if (hashedInput !== account.password) {
-          toast({
-            title: '비밀번호 오류',
-            description: '계좌 비밀번호가 일치하지 않습니다.',
-            variant: 'destructive',
-          });
-          setIsProcessing(false);
-          return;
-        }
-
-        // Check balance
-        if (numAmount > account.balance) {
-          toast({
-            title: '잔액 부족',
-            description: '출금 금액이 계좌 잔액을 초과합니다.',
-            variant: 'destructive',
-          });
-          setIsProcessing(false);
-          return;
-        }
-
-        // Process withdrawal
-        const newBalance = account.balance - numAmount;
-        const { error: updateError } = await supabase
-          .from('account')
-          .update({ balance: newBalance, updated_at: new Date().toISOString() })
-          .eq('id', account.id);
-
-        if (updateError) throw updateError;
-
-        // Record transaction
-        await supabase.from('account_transaction').insert({
-          transaction_type: 'WITHDRAW',
+        await depositAccount({
+          number: accountNumber.replace(/-/g, ''),
           amount: numAmount,
-          withdraw_account_id: account.id,
-          withdraw_account_balance: newBalance,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+          transactionType: 'DEPOSIT',
+          tel: '010-0000-0000',  // 입금은 tel 필수, 임시값 사용
         });
+        toast({ title: '입금 완료', description: `₩${numAmount.toLocaleString('ko-KR')} 입금되었습니다.` });
 
-        toast({
-          title: '출금 완료',
-          description: `₩${numAmount.toLocaleString('ko-KR')} 출금되었습니다.`,
-        });
-        handleClose();
-      } catch (err) {
-        console.error('Withdraw error:', err);
-        toast({
-          title: '출금 실패',
-          description: '출금 처리 중 오류가 발생했습니다.',
-          variant: 'destructive',
-        });
-      } finally {
-        setIsProcessing(false);
-      }
-      return;
-    }
-
-    // Transfer-specific logic
-    if (type === 'transfer') {
-      if (!accountNumber.trim()) {
-        toast({ title: '출금계좌 필요', description: '출금할 계좌번호를 입력해주세요.', variant: 'destructive' });
-        return;
-      }
-      if (!depositAccountNumber.trim()) {
-        toast({ title: '입금계좌 필요', description: '입금할 계좌번호를 입력해주세요.', variant: 'destructive' });
-        return;
-      }
-      if (!accountPassword.trim()) {
-        toast({ title: '비밀번호 필요', description: '출금 계좌 비밀번호를 입력해주세요.', variant: 'destructive' });
-        return;
-      }
-
-      setIsProcessing(true);
-      try {
-        // Find withdraw account
-        const { data: withdrawAccount, error: wErr } = await supabase
-          .from('account')
-          .select('id, number, balance, password')
-          .eq('number', parseInt(accountNumber.replace(/-/g, ''), 10))
-          .single();
-
-        if (wErr || !withdrawAccount) {
-          toast({ title: '출금계좌 없음', description: '출금 계좌번호를 찾을 수 없습니다.', variant: 'destructive' });
+      } else if (type === 'withdraw') {
+        if (!accountNumber.trim()) {
+          toast({ title: '계좌번호 필요', description: '출금할 계좌번호를 입력해주세요.', variant: 'destructive' });
           setIsProcessing(false);
           return;
         }
-
-        // Verify password
-        const hashedInput = await hashPassword(accountPassword);
-        if (hashedInput !== withdrawAccount.password) {
-          toast({ title: '비밀번호 오류', description: '출금 계좌 비밀번호가 일치하지 않습니다.', variant: 'destructive' });
+        if (!accountPassword.trim()) {
+          toast({ title: '비밀번호 필요', description: '계좌 비밀번호를 입력해주세요.', variant: 'destructive' });
           setIsProcessing(false);
           return;
         }
-
-        // Check balance
-        if (numAmount > withdrawAccount.balance) {
-          toast({ title: '잔액 부족', description: '이체 금액이 출금 계좌 잔액을 초과합니다.', variant: 'destructive' });
-          setIsProcessing(false);
-          return;
-        }
-
-        // Find deposit account
-        const { data: depositAccount, error: dErr } = await supabase
-          .from('account')
-          .select('id, number, balance')
-          .eq('number', parseInt(depositAccountNumber.replace(/-/g, ''), 10))
-          .single();
-
-        if (dErr || !depositAccount) {
-          toast({ title: '입금계좌 없음', description: '입금 계좌번호를 찾을 수 없습니다.', variant: 'destructive' });
-          setIsProcessing(false);
-          return;
-        }
-
-        if (withdrawAccount.id === depositAccount.id) {
-          toast({ title: '이체 불가', description: '출금계좌와 입금계좌가 동일합니다.', variant: 'destructive' });
-          setIsProcessing(false);
-          return;
-        }
-
-        const newWithdrawBalance = withdrawAccount.balance - numAmount;
-        const newDepositBalance = depositAccount.balance + numAmount;
-        const now = new Date().toISOString();
-
-        // Update both accounts
-        const { error: u1 } = await supabase
-          .from('account')
-          .update({ balance: newWithdrawBalance, updated_at: now })
-          .eq('id', withdrawAccount.id);
-        if (u1) throw u1;
-
-        const { error: u2 } = await supabase
-          .from('account')
-          .update({ balance: newDepositBalance, updated_at: now })
-          .eq('id', depositAccount.id);
-        if (u2) throw u2;
-
-        // Record transaction
-        await supabase.from('account_transaction').insert({
-          transaction_type: 'TRANSFER',
+        await withdrawAccount({
+          number: accountNumber.replace(/-/g, ''),
+          password: parseInt(accountPassword),
           amount: numAmount,
-          withdraw_account_id: withdrawAccount.id,
-          withdraw_account_balance: newWithdrawBalance,
-          deposit_account_id: depositAccount.id,
-          deposit_account_balance: newDepositBalance,
-          created_at: now,
-          updated_at: now,
+          transactionType: 'WITHDRAW',
         });
+        toast({ title: '출금 완료', description: `₩${numAmount.toLocaleString('ko-KR')} 출금되었습니다.` });
 
-        toast({
-          title: '이체 완료',
-          description: `₩${numAmount.toLocaleString('ko-KR')} 이체되었습니다.`,
+      } else if (type === 'transfer') {
+        if (!accountNumber.trim() || !depositAccountNumber.trim() || !accountPassword.trim()) {
+          toast({ title: '입력 오류', description: '모든 항목을 입력해주세요.', variant: 'destructive' });
+          setIsProcessing(false);
+          return;
+        }
+        await transferAccount({
+          withdrawNumber: accountNumber.replace(/-/g, ''),
+          depositNumber: depositAccountNumber.replace(/-/g, ''),
+          withdrawPassword: parseInt(accountPassword),
+          amount: numAmount,
+          transactionType: 'TRANSFER',
         });
-        handleClose();
-      } catch (err) {
-        console.error('Transfer error:', err);
-        toast({ title: '이체 실패', description: '이체 처리 중 오류가 발생했습니다.', variant: 'destructive' });
-      } finally {
-        setIsProcessing(false);
+        toast({ title: '이체 완료', description: `₩${numAmount.toLocaleString('ko-KR')} 이체되었습니다.` });
       }
-      return;
-    }
 
-    // Deposit only
-    let success = false;
-    const desc = description.trim() || 'Deposit';
-
-    if (type === 'deposit') {
-      success = onDeposit(numAmount, desc);
-    }
-
-    if (success) {
-      toast({
-        title: 'Transaction successful',
-        description: `Your deposit of $${numAmount.toFixed(2)} has been processed`,
-      });
       handleClose();
+    } catch (error) {
+      let message = '처리 중 오류가 발생했습니다.';
+      if (axios.isAxiosError(error)) {
+        message = error.response?.data?.msg || message;
+      }
+      toast({ title: '처리 실패', description: message, variant: 'destructive' });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -430,16 +259,18 @@ export function TransactionModal({
           </div>
 
           {type === 'deposit' && (
-            <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
-              <Input
-                id="description"
-                placeholder="What's this for?"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="bg-secondary/50 border-border"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="accountNumber">계좌번호</Label>
+                <Input
+                    id="accountNumber"
+                    type="text"
+                    placeholder="입금할 계좌번호 입력"
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                    className="bg-secondary/50 border-border"
+                    autoFocus
+                />
+              </div>
           )}
 
           <div className="flex gap-3 pt-4">

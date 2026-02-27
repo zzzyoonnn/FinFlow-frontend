@@ -11,15 +11,20 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { useBankAccount } from '@/hooks/useBankAccount';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { getMyAccounts } from '@/api/account';
 
 type TransactionType = 'deposit' | 'withdraw' | 'transfer';
 
 interface Account {
   id: number;
-  number: number;
+  number: string;
   balance: number;
-  created_at: string;
+}
+
+interface User {
+  id: number;
+  username: string;
+  createdAt: string;
 }
 
 const Dashboard = () => {
@@ -28,7 +33,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const { balance, transactions, deposit, withdraw, transfer } = useBankAccount();
   const [modalType, setModalType] = useState<TransactionType | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
@@ -46,17 +51,12 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchAccounts = async () => {
-      if (!user?.id) return;
+      if (!user) return;
 
       setIsLoadingAccounts(true);
       try {
-        const { data, error } = await supabase
-            .from('account')
-            .select('id, number, balance, created_at')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
+        const response = await getMyAccounts();
+        const data = response.data.data.accountList;
 
         setAccounts(data || []);
         if (data && data.length > 0 && !selectedAccountId) {
@@ -70,16 +70,16 @@ const Dashboard = () => {
     };
 
     fetchAccounts();
-  }, [user?.id]);
+  }, [user]);
 
   const refreshAccounts = async () => {
-    if (!user?.id) return;
-    const { data } = await supabase
-        .from('account')
-        .select('id, number, balance, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-    setAccounts(data || []);
+    try {
+      const response = await getMyAccounts();
+      const data = response.data.data.accountList;
+      setAccounts(data || []);
+    } catch (error) {
+      console.error('Failed to refresh accounts:', error);
+    }
   };
 
   const handleLogout = () => {
@@ -95,7 +95,7 @@ const Dashboard = () => {
   const openModal = (type: TransactionType) => setModalType(type);
   const closeModal = () => setModalType(null);
 
-  const displayName = user?.fullname || loginUser || '게스트';
+  const displayName = user?.username || loginUser || '게스트';
 
   return (
       <div className="min-h-screen bg-background">

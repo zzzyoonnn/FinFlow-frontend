@@ -5,9 +5,8 @@ import { Button } from '@/components/ui/button';
 
 interface Account {
   id: number;
-  number: number;
+  number: string;
   balance: number;
-  created_at: string;
 }
 
 interface AccountListProps {
@@ -33,7 +32,7 @@ export function AccountList({ accounts, isLoading, selectedAccountId, onSelectAc
     });
   };
 
-  const formatAccountNumber = (number: number) => {
+  const formatAccountNumber = (number: string) => {
     const numStr = number.toString().padStart(12, '0');
     return `${numStr.slice(0, 4)}-${numStr.slice(4, 8)}-${numStr.slice(8)}`;
   };
