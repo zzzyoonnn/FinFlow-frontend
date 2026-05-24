@@ -11,20 +11,15 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { useBankAccount } from '@/hooks/useBankAccount';
 import { useToast } from '@/hooks/use-toast';
-import { getMyAccounts } from '@/api/account';
+import { supabase } from '@/integrations/supabase/client';
 
 type TransactionType = 'deposit' | 'withdraw' | 'transfer';
 
 interface Account {
   id: number;
-  number: string;
+  number: number;
   balance: number;
-}
-
-interface User {
-  id: number;
-  username: string;
-  createdAt: string;
+  created_at: string;
 }
 
 const Dashboard = () => {
@@ -33,7 +28,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const { balance, transactions, deposit, withdraw, transfer } = useBankAccount();
   const [modalType, setModalType] = useState<TransactionType | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
@@ -51,12 +46,17 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchAccounts = async () => {
-      if (!user) return;
+      if (!user?.id) return;
 
       setIsLoadingAccounts(true);
       try {
-        const response = await getMyAccounts();
-        const data = response.data.data.accountList;
+        const { data, error } = await supabase
+            .from('account')
+            .select('id, number, balance, created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
 
         setAccounts(data || []);
         if (data && data.length > 0 && !selectedAccountId) {
@@ -70,16 +70,16 @@ const Dashboard = () => {
     };
 
     fetchAccounts();
-  }, [user]);
+  }, [user?.id]);
 
   const refreshAccounts = async () => {
-    try {
-      const response = await getMyAccounts();
-      const data = response.data.data.accountList;
-      setAccounts(data || []);
-    } catch (error) {
-      console.error('Failed to refresh accounts:', error);
-    }
+    if (!user?.id) return;
+    const { data } = await supabase
+        .from('account')
+        .select('id, number, balance, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+    setAccounts(data || []);
   };
 
   const handleLogout = () => {
@@ -95,7 +95,7 @@ const Dashboard = () => {
   const openModal = (type: TransactionType) => setModalType(type);
   const closeModal = () => setModalType(null);
 
-  const displayName = user?.username || loginUser || '게스트';
+  const displayName = user?.fullname || loginUser || '게스트';
 
   return (
       <div className="min-h-screen bg-background">
@@ -109,7 +109,7 @@ const Dashboard = () => {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-foreground">FinFlow</h1>
-                  <p className="text-xs text-muted-foreground">Personal Banking</p>
+                  <p className="text-xs text-muted-foreground">개인 뱅킹</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -162,26 +162,26 @@ const Dashboard = () => {
 
           {/* Quick Actions */}
           <section className="mb-8">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">빠른 작업</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <ActionCard
                   icon={ArrowDownLeft}
-                  title="Deposit"
-                  description="Add funds to your account"
+                  title="입금"
+                  description="계좌에 자금을 입금합니다"
                   onClick={() => openModal('deposit')}
                   variant="deposit"
               />
               <ActionCard
                   icon={ArrowUpRight}
-                  title="Withdraw"
-                  description="Cash out from your account"
+                  title="출금"
+                  description="계좌에서 출금합니다"
                   onClick={() => openModal('withdraw')}
                   variant="withdraw"
               />
               <ActionCard
                   icon={Send}
-                  title="Transfer"
-                  description="Send money to others"
+                  title="이체"
+                  description="다른 계좌로 송금합니다"
                   onClick={() => openModal('transfer')}
                   variant="transfer"
               />

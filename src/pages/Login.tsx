@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import api from "@/api/axios";
-import axios from "axios";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -41,36 +40,35 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await api.post("/login", {
-        username: formData.username,
-        password: formData.password,
+      const { data, error } = await supabase.functions.invoke("login", {
+        body: {
+          username: formData.username,
+          password: formData.password,
+        },
       });
 
-      // JWT 토큰 저장 (헤더에서 추출)
-      const token = response.headers["authorization"];
-      if (token) {
-        localStorage.setItem("token", token);
+      if (error) {
+        throw new Error(error.message);
       }
 
-      // 유저 정보 저장 (바디에서 추출)
-      const user = response.data.data;
-      localStorage.setItem("user", JSON.stringify(user));
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Store user info in localStorage for session management
+      localStorage.setItem("user", JSON.stringify(data.user));
 
       toast({
         title: "로그인 성공",
-        description: `${user.fullname}님, 환영합니다!`,
+        description: `${data.user.fullname}님, 환영합니다!`,
       });
 
-      navigate(`/api/s/account/${user.username}`);
-    } catch (error) {
-      let message = "로그인 중 오류가 발생했습니다.";
-      if (axios.isAxiosError(error)) {
-        message = error.response?.data?.msg || message;
-      }
+      navigate(`/api/s/account/${data.user.username}`);
+    } catch (error: any) {
       toast({
         variant: "destructive",
         title: "로그인 실패",
-        description: error.response?.data?.msg || "로그인 중 오류가 발생했습니다.",
+        description: error.message || "로그인 중 오류가 발생했습니다.",
       });
     } finally {
       setIsLoading(false);
@@ -78,93 +76,93 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
-      {/* Theme Toggle */}
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
-
-      <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-            <Shield className="w-6 h-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">FinFlow</h1>
-            <p className="text-xs text-muted-foreground">Personal Banking</p>
-          </div>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
+        {/* Theme Toggle */}
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
         </div>
 
-        <Card className="glass-card animate-slide-up">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">로그인</CardTitle>
-            <CardDescription>
-              계정에 로그인하세요
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">아이디</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="username"
-                    name="username"
-                    type="text"
-                    placeholder="아이디를 입력하세요"
-                    value={formData.username}
-                    onChange={handleChange}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">비밀번호</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="비밀번호를 입력하세요"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    로그인 중...
-                  </>
-                ) : (
-                  "로그인"
-                )}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">계정이 없으신가요? </span>
-              <Link to="/signup" className="text-primary hover:underline font-medium">
-                회원가입
-              </Link>
+        <div className="w-full max-w-md">
+          {/* Logo */}
+          <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+              <Shield className="w-6 h-6 text-primary" />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">FinFlow</h1>
+              <p className="text-xs text-muted-foreground">Personal Banking</p>
+            </div>
+          </div>
+
+          <Card className="glass-card animate-slide-up">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">로그인</CardTitle>
+              <CardDescription>
+                계정에 로그인하세요
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="username">아이디</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        id="username"
+                        name="username"
+                        type="text"
+                        placeholder="아이디를 입력하세요"
+                        value={formData.username}
+                        onChange={handleChange}
+                        className="pl-10"
+                        required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">비밀번호</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        id="password"
+                        name="password"
+                        type="password"
+                        placeholder="비밀번호를 입력하세요"
+                        value={formData.password}
+                        onChange={handleChange}
+                        className="pl-10"
+                        required
+                    />
+                  </div>
+                </div>
+
+                <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isLoading}
+                >
+                  {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        로그인 중...
+                      </>
+                  ) : (
+                      "로그인"
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-6 text-center text-sm">
+                <span className="text-muted-foreground">계정이 없으신가요? </span>
+                <Link to="/signup" className="text-primary hover:underline font-medium">
+                  회원가입
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
   );
 };
 

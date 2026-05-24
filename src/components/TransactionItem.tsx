@@ -45,22 +45,22 @@ export function TransactionItem({ transaction }: TransactionItemProps) {
   }).format(transaction.date);
 
   return (
-    <div className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors duration-200">
-      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", config.bgColor)}>
-        <Icon className={cn("w-5 h-5", config.color)} />
+      <div className="flex items-center gap-4 p-4 rounded-xl hover:bg-secondary/50 transition-colors duration-200">
+        <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", config.bgColor)}>
+          <Icon className={cn("w-5 h-5", config.color)} />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="font-medium text-foreground truncate">{transaction.description}</p>
+          <p className="text-sm text-muted-foreground">
+            {formattedDate}
+            {transaction.recipient && ` • To: ${transaction.recipient}`}
+          </p>
+        </div>
+
+        <div className={cn("font-semibold tabular-nums", config.color)}>
+          {config.prefix}{formattedAmount}
+        </div>
       </div>
-      
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-foreground truncate">{transaction.description}</p>
-        <p className="text-sm text-muted-foreground">
-          {formattedDate}
-          {transaction.recipient && ` • To: ${transaction.recipient}`}
-        </p>
-      </div>
-      
-      <div className={cn("font-semibold tabular-nums", config.color)}>
-        {config.prefix}{formattedAmount}
-      </div>
-    </div>
   );
 }
