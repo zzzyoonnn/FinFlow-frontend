@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8081',  // 스프링부트 포트
+        target: env.VITE_API_URL,  // 스프링부트 포트
         changeOrigin: true,
       }
     }
